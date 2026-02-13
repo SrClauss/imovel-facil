@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { FaPlus, FaTrash, FaSave } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaEye, FaEyeSlash } from "react-icons/fa";
 
 type User = { id: string; email?: string; firstName?: string; lastName?: string; role?: string };
 
@@ -18,8 +18,18 @@ export default function AdminUsers() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("user");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createConfirmPassword, setCreateConfirmPassword] = useState("");
+  const [createPasswordVisible, setCreatePasswordVisible] = useState(false);
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // change-password modal state
+  const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
+  const [changePwdUserId, setChangePwdUserId] = useState<string | null>(null);
+  const [changePwdValue, setChangePwdValue] = useState("");
+  const [changePwdConfirmValue, setChangePwdConfirmValue] = useState("");
+  const [changePwdVisible, setChangePwdVisible] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) return navigate("/login");
@@ -34,12 +44,18 @@ export default function AdminUsers() {
 
   async function handleAdd(e?: React.FormEvent) {
     if (e) e.preventDefault();
+    if (createPassword && createPassword !== createConfirmPassword) {
+      return alert("Senhas não conferem");
+    }
     await axios.post(
       "/api/admin/users",
-      { email, firstName, lastName, role },
+      { email, firstName, lastName, role, password: createPassword || undefined },
       { withCredentials: true },
     );
     setEmail("");
+    setCreatePassword("");
+    setCreateConfirmPassword("");
+    setCreatePasswordVisible(false);
     setFirstName("");
     setLastName("");
     setRole("user");
@@ -87,6 +103,40 @@ export default function AdminUsers() {
                     <Input placeholder="Nome" value={firstName} onChange={(e:any) => setFirstName(e.target.value)} />
                     <Input placeholder="Sobrenome" value={lastName} onChange={(e:any) => setLastName(e.target.value)} />
                   </div>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input
+                        placeholder="senha (opcional)"
+                        type={createPasswordVisible ? "text" : "password"}
+                        value={createPassword}
+                        onChange={(e: any) => setCreatePassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
+                        onClick={() => setCreatePasswordVisible((v) => !v)}
+                        aria-label={createPasswordVisible ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {createPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        placeholder="repita a senha"
+                        type={createPasswordVisible ? "text" : "password"}
+                        value={createConfirmPassword}
+                        onChange={(e: any) => setCreateConfirmPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
+                        onClick={() => setCreatePasswordVisible((v) => !v)}
+                        aria-label={createPasswordVisible ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {createPasswordVisible ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex justify-between items-center gap-2">
                     <select value={role} onChange={(e) => setRole(e.target.value)} className="border px-2 rounded">
                       <option value="user">user</option>
@@ -94,9 +144,47 @@ export default function AdminUsers() {
                       <option value="admin">admin</option>
                     </select>
                     <div className="flex gap-2 ml-auto">
-                      <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                      <Button type="button" variant="outline" onClick={() => { setIsCreateOpen(false); setCreatePassword(""); setCreateConfirmPassword(""); setCreatePasswordVisible(false); }}>Cancelar</Button>
                       <Button type="submit">Salvar</Button>
                     </div>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Change-password modal */}
+            <Dialog open={isChangePwdOpen} onOpenChange={(open) => { if (!open) { setChangePwdUserId(null); setChangePwdValue(""); setChangePwdConfirmValue(""); setChangePwdVisible(false); } setIsChangePwdOpen(open); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Alterar senha</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!changePwdUserId) return;
+                  if (changePwdValue !== changePwdConfirmValue) return alert("Senhas não conferem");
+                  await axios.put(`/api/admin/users/${changePwdUserId}`, { password: changePwdValue }, { withCredentials: true });
+                  setIsChangePwdOpen(false);
+                  setChangePwdUserId(null);
+                  setChangePwdValue("");
+                  setChangePwdConfirmValue("");
+                  setChangePwdVisible(false);
+                  fetchUsers();
+                }} className="space-y-3 mt-2">
+                  <div className="relative">
+                    <Input placeholder="nova senha" type={changePwdVisible ? "text" : "password"} value={changePwdValue} onChange={(e:any) => setChangePwdValue(e.target.value)} required />
+                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" onClick={() => setChangePwdVisible(v => !v)} aria-label={changePwdVisible ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {changePwdVisible ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input placeholder="repita a nova senha" type={changePwdVisible ? "text" : "password"} value={changePwdConfirmValue} onChange={(e:any) => setChangePwdConfirmValue(e.target.value)} required />
+                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" onClick={() => setChangePwdVisible(v => !v)} aria-label={changePwdVisible ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {changePwdVisible ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => { setIsChangePwdOpen(false); setChangePwdUserId(null); setChangePwdConfirmValue(''); setChangePwdVisible(false); }}>Cancelar</Button>
+                    <Button type="submit">Salvar</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -127,25 +215,17 @@ export default function AdminUsers() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
-                        <Input
-                          placeholder="nova senha"
-                          type="password"
-                          value={passwords[u.id] || ""}
-                          onChange={(e:any) => setPasswords((p) => ({ ...p, [u.id]: e.target.value }))}
-                          className="max-w-[180px]"
-                        />
-
-                        <Tooltip>
+                            <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              className="p-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-                              onClick={() => handleUpdatePassword(u.id, passwords[u.id] || "")}
-                              aria-label="Salvar senha"
+                              className="p-2 rounded-md bg-amber-500 text-white hover:bg-amber-600"
+                              onClick={() => { setChangePwdUserId(u.id); setChangePwdValue(""); setIsChangePwdOpen(true); }}
+                              aria-label="Alterar senha"
                             >
-                              <FaSave />
+                              🔑
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>Salvar senha</TooltipContent>
+                          <TooltipContent>Alterar senha</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
