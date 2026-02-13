@@ -1,0 +1,41 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: imovel-facil-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: imovel_facil
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: imovel-facil-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/imovel_facil
+      NODE_ENV: production
+      PORT: 5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npx drizzle-kit push && node dist/index.cjs"
+
+volumes:
+  postgres_data:
+    driver: local
