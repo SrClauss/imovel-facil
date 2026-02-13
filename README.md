@@ -150,12 +150,12 @@ The application will be available at http://localhost:5000
 
 ## 🧪 Testing
 
-This project includes comprehensive testing for both backend and frontend.
+This project includes comprehensive testing for backend, frontend, and end-to-end user flows.
 
 ### Running Tests
 
 ```bash
-# Run all tests (backend + frontend)
+# Run all unit tests (backend + frontend)
 npm test
 
 # Run backend tests only
@@ -172,7 +172,23 @@ npm run test:ui
 
 # Generate coverage report
 npm run test:coverage
+
+# Run end-to-end tests
+npm run test:e2e
+
+# Run E2E tests with UI (interactive)
+npm run test:e2e:ui
+
+# Run all tests (unit + E2E)
+npm run test:all
 ```
+
+### Test Coverage
+
+- **Backend Tests**: 17 tests (storage + routes)
+- **Frontend Tests**: 23 tests (React components)
+- **E2E Tests**: 50+ tests (user flows and interactions)
+- **Total**: 90+ tests
 
 ### Backend Tests
 
@@ -191,6 +207,25 @@ Frontend tests use **Vitest**, **React Testing Library**, and **jsdom** to test:
 - React components
 - User interactions
 - Component rendering
+
+Test files are located in:
+- `client/src/components/*.test.tsx` - Component tests
+
+### End-to-End Tests
+
+E2E tests use **Playwright** to test complete user workflows:
+- Home page and property listings
+- Property search and filtering
+- Property details page
+- Contact form submission
+- Authentication flow (login/logout)
+- Property management (CRUD operations)
+- Responsive design and navigation
+
+Test files are located in:
+- `e2e/*.spec.ts` - End-to-end test suites
+
+For more details on testing, see [TESTING.md](TESTING.md).
 
 Test files are located in:
 - `client/src/components/*.test.tsx` - Component tests
