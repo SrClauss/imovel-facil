@@ -15,12 +15,12 @@
     "test:watch": "vitest --config vitest.config.server.ts",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
-    "docker:dev:up": "docker-compose -f docker-compose.dev.yml up -d",
-    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down"
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:dev:up": "docker compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml down"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

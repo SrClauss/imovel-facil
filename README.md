@@ -72,19 +72,21 @@ A full-stack TypeScript application for real estate property management with a m
 
 ```bash
 # Build the image
-docker-compose build
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Stop services
-docker-compose down
+docker compose down
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Rebuild and restart
-docker-compose up -d --build
+docker compose up -d --build
+
+# Note: If using Docker Compose v1 (versions prior to Docker 20.10), use 'docker-compose' instead of 'docker compose'
 ```
 
 ### Development with Docker Database
@@ -310,12 +312,12 @@ This project is licensed under the MIT License.
 **Container won't start:**
 ```bash
 # Check logs
-docker-compose logs
+docker compose logs
 
 # Rebuild from scratch
-docker-compose down -v
-docker-compose build --no-cache
-docker-compose up
+docker compose down -v
+docker compose build --no-cache
+docker compose up
 ```
 
 **Database connection issues:**
