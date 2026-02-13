@@ -48,14 +48,7 @@ test.describe('Contact Form', () => {
     await submitButton.click();
     
     // Wait for response
-    await page.waitForTimeout(2000);
-    
-    // Check for success message or redirect
-    // Success message might be a toast, alert, or text on page
-    const successMessage = page.locator('text=/enviado|sucesso|success|obrigado|thank you/i').first();
-    
-    // Give it time to appear
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
   });
 
   test('should show validation errors for empty required fields', async ({ page }) => {
@@ -63,18 +56,12 @@ test.describe('Contact Form', () => {
     const submitButton = page.locator('button[type="submit"], button').filter({ hasText: /enviar|submit/i }).first();
     await submitButton.click();
     
-    // Wait for validation messages
-    await page.waitForTimeout(1000);
-    
-    // Check for validation errors
-    // These might be shown as text near inputs, or as browser validation
-    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
+    // Wait for validation
+    await page.waitForLoadState('domcontentloaded');
     
     // Check if browser validation is working
+    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
     const isInvalid = await emailInput.evaluate((el: HTMLInputElement) => !el.validity.valid);
-    
-    // Or check for custom error messages
-    await page.waitForTimeout(1000);
   });
 
   test('should show validation error for invalid email format', async ({ page }) => {
@@ -86,12 +73,10 @@ test.describe('Contact Form', () => {
     await submitButton.click();
     
     // Wait for validation
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('domcontentloaded');
     
     // Check if field is marked as invalid
     const isInvalid = await emailInput.evaluate((el: HTMLInputElement) => !el.validity.valid);
-    
-    await page.waitForTimeout(1000);
   });
 
   test('should have contact information displayed', async ({ page }) => {

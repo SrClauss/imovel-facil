@@ -11,9 +11,6 @@ test.describe('Authentication Flow', () => {
     if (await loginButton.isVisible()) {
       await loginButton.click();
       await page.waitForLoadState('networkidle');
-      
-      // Check if we're on a login page or modal appeared
-      await page.waitForTimeout(1000);
     }
   });
 
@@ -26,7 +23,9 @@ test.describe('Authentication Flow', () => {
     
     if (await loginButton.isVisible()) {
       await loginButton.click();
-      await page.waitForTimeout(1000);
+      
+      // Wait for form to appear
+      await page.waitForSelector('input[name="username"], input[name="email"], input[type="email"]', { timeout: 2000 }).catch(() => {});
       
       // Check for username/email field
       const usernameInput = page.locator('input[name="username"], input[name="email"], input[type="email"]').first();

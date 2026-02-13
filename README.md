@@ -227,9 +227,6 @@ Test files are located in:
 
 For more details on testing, see [TESTING.md](TESTING.md).
 
-Test files are located in:
-- `client/src/components/*.test.tsx` - Component tests
-
 ### Test Configuration
 
 - `vitest.config.server.ts` - Backend test configuration

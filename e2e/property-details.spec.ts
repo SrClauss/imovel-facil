@@ -101,12 +101,6 @@ test.describe('Property Details Page', () => {
     await page.waitForLoadState('networkidle');
     
     // Should show error message or redirect to 404
-    // Check if we're on an error page or if there's an error message
-    const errorMessage = page.locator('text=/não encontrado|not found|erro|error/i').first();
-    
-    // It might show error message or redirect to home/404
-    await page.waitForTimeout(2000);
-    
     // At least verify the page loaded
     expect(page.url()).toBeTruthy();
   });

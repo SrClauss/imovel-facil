@@ -26,8 +26,6 @@ test.describe('Property Search and Filtering', () => {
     
     if (await categorySelect.isVisible()) {
       await categorySelect.click();
-      // Wait a bit for options to appear
-      await page.waitForTimeout(500);
       
       // Try to select an option if available
       const option = page.locator('option, [role="option"]').filter({ hasText: /casa|house/i }).first();
@@ -57,9 +55,6 @@ test.describe('Property Search and Filtering', () => {
       await searchInput.fill('casa');
       await page.keyboard.press('Enter');
       await page.waitForLoadState('networkidle');
-      
-      // Check if results are displayed
-      await page.waitForTimeout(1000);
     }
   });
 
@@ -71,10 +66,6 @@ test.describe('Property Search and Filtering', () => {
       await searchInput.fill('xyznonexistentproperty12345');
       await page.keyboard.press('Enter');
       await page.waitForLoadState('networkidle');
-      
-      // Check for empty state or no results message
-      // This might show "Nenhum resultado", "Nenhum imóvel encontrado", or similar
-      await page.waitForTimeout(2000);
     }
   });
 
@@ -84,7 +75,6 @@ test.describe('Property Search and Filtering', () => {
     
     if (await typeFilter.isVisible()) {
       await typeFilter.click();
-      await page.waitForTimeout(500);
     }
     
     // Look for clear/reset button
