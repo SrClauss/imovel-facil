@@ -382,21 +382,303 @@ Priority areas for testing:
 3. Critical UI components
 4. User authentication flows
 
+## End-to-End (E2E) Testing
+
+The project now includes comprehensive end-to-end tests using **Playwright** to test complete user workflows and interactions.
+
+### Prerequisites for E2E Tests
+
+Before running E2E tests, ensure the following:
+
+1. **PostgreSQL Database Running**
+   ```bash
+   # Start the development database
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+2. **Database Schema Initialized**
+   ```bash
+   # Push database schema
+   npm run db:push
+   ```
+
+3. **Development Server Running**
+   ```bash
+   # Start the development server in a separate terminal
+   npm run dev
+   ```
+
+4. **Playwright Browsers Installed**
+   ```bash
+   # Install Playwright browsers (first time only)
+   npx playwright install
+   ```
+
+### Running E2E Tests
+
+Once the prerequisites are met, run the tests:
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run E2E tests with UI mode (interactive)
+npm run test:e2e:ui
+
+# Run E2E tests in headed mode (see browser)
+npm run test:e2e:headed
+
+# Debug E2E tests
+npm run test:e2e:debug
+
+# Run tests in specific browser
+npm run test:e2e:chrome
+
+# View test report
+npm run test:e2e:report
+
+# Run all tests (unit + E2E)
+npm run test:all
+```
+
+### E2E Test Structure
+
+E2E tests are located in the `e2e/` directory:
+- `e2e/home.spec.ts` - Home page and navigation tests
+- `e2e/property-search.spec.ts` - Property search and filtering tests
+- `e2e/property-details.spec.ts` - Property details page tests
+- `e2e/contact-form.spec.ts` - Contact form submission tests
+- `e2e/authentication.spec.ts` - Login/logout flow tests
+- `e2e/property-management.spec.ts` - Property CRUD operations tests
+- `e2e/responsive-navigation.spec.ts` - Responsive design and navigation tests
+
+### E2E Test Coverage
+
+The E2E tests cover the following critical user journeys:
+
+#### 1. Home Page & Navigation
+- Page loads successfully
+- Property listings display
+- Navigation between pages
+- Footer and header visibility
+
+#### 2. Property Search & Filtering
+- Filter by property type (sale/rent)
+- Filter by category (house/apartment/land/commercial)
+- Filter by neighborhood
+- Search functionality
+- Clear filters
+
+#### 3. Property Details
+- Display property information
+- Show property images
+- Display characteristics (bedrooms, bathrooms, area)
+- Contact information
+- Handle invalid property IDs
+
+#### 4. Contact Form
+- Form field validation
+- Submit contact form
+- Email format validation
+- Required field validation
+- Success/error messages
+
+#### 5. Authentication Flow
+- Login page access
+- Login with credentials
+- Logout functionality
+- Protected routes
+- User menu display
+
+#### 6. Property Management (CRUD)
+- Create new property
+- List properties in dashboard
+- Edit existing property
+- Delete property with confirmation
+- Form validation
+
+#### 7. Responsive Design
+- Mobile viewport (375px)
+- Tablet viewport (768px)
+- Desktop viewport (1920px)
+- Mobile menu functionality
+- Browser navigation (back/forward)
+- Keyboard navigation
+- 404 page handling
+
+### E2E Configuration
+
+E2E tests are configured in `playwright.config.ts`:
+
+```typescript
+{
+  testDir: './e2e',
+  baseURL: 'http://localhost:5000',
+  fullyParallel: true,
+  retries: process.env.CI ? 2 : 0,
+  use: {
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
+  projects: [
+    { name: 'chromium' },
+    { name: 'firefox' },
+    { name: 'webkit' },
+    { name: 'Mobile Chrome' },
+    { name: 'Mobile Safari' },
+  ],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5000',
+    reuseExistingServer: !process.env.CI,
+  }
+}
+```
+
+### Writing E2E Tests
+
+#### Example: Testing a User Journey
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Property Search Flow', () => {
+  test('user can search and view property details', async ({ page }) => {
+    // 1. Navigate to home page
+    await page.goto('/');
+    
+    // 2. Search for properties
+    await page.getByRole('searchbox').fill('casa');
+    await page.getByRole('button', { name: 'Buscar' }).click();
+    
+    // 3. Verify results
+    await expect(page.getByTestId('property-card')).toBeVisible();
+    
+    // 4. Click on first property
+    await page.getByTestId('property-card').first().click();
+    
+    // 5. Verify details page
+    await expect(page).toHaveURL(/\/imovel\/\d+/);
+    await expect(page.getByRole('heading')).toBeVisible();
+  });
+});
+```
+
+#### Best Practices for E2E Tests
+
+1. **Test real user workflows**
+   - Simulate actual user behavior
+   - Test complete journeys, not isolated features
+
+2. **Use proper selectors**
+   - Prefer role-based selectors: `getByRole('button')`
+   - Use test IDs for dynamic content: `data-testid="property-card"`
+   - Avoid brittle selectors like classes or IDs
+
+3. **Wait for elements properly**
+   - Use `waitForLoadState('networkidle')`
+   - Wait for specific elements: `await element.waitFor()`
+   - Use appropriate timeouts
+
+4. **Handle async operations**
+   - Wait for navigation to complete
+   - Wait for API responses
+   - Handle dynamic content loading
+
+5. **Clean up test data**
+   - Use test-specific data
+   - Clean up after tests
+   - Isolate test environments
+
+6. **Make tests resilient**
+   - Handle different page states
+   - Account for timing variations
+   - Use retries for flaky tests
+
+### Debugging E2E Tests
+
+#### Using Playwright Inspector
+
+```bash
+npm run test:e2e:debug
+```
+
+This opens the Playwright Inspector where you can:
+- Step through tests
+- Inspect selectors
+- View screenshots and traces
+- See network activity
+
+#### Using UI Mode
+
+```bash
+npm run test:e2e:ui
+```
+
+Interactive mode with:
+- Visual test runner
+- Time travel debugging
+- Watch mode
+- Detailed error messages
+
+#### Viewing Test Reports
+
+```bash
+npm run test:e2e:report
+```
+
+Opens HTML report with:
+- Test results and timing
+- Screenshots on failure
+- Videos of test runs
+- Trace files
+
+### CI/CD Integration
+
+E2E tests are configured to run in CI environments:
+
+```yaml
+# .github/workflows/e2e.yml
+name: E2E Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+```
+
+### E2E Test Artifacts
+
+Playwright generates several artifacts:
+- **test-results/** - Test execution results
+- **playwright-report/** - HTML report with screenshots and videos
+- **playwright/.cache/** - Browser binaries cache
+
+These are automatically ignored in `.gitignore`.
+
 ## Future Improvements
 
 1. **Integration Tests**
    - Test full user workflows
    - Use real database in test environment
 
-2. **E2E Tests**
-   - Add Playwright for end-to-end testing
-   - Test complete user journeys
-
-3. **Visual Regression Tests**
+2. **Visual Regression Tests**
    - Detect unintended UI changes
    - Use tools like Percy or Chromatic
 
-4. **Performance Tests**
+3. **Performance Tests**
    - API response times
    - Component render times
 
@@ -404,4 +686,5 @@ Priority areas for testing:
 
 - [Vitest Documentation](https://vitest.dev/)
 - [React Testing Library](https://testing-library.com/react)
+- [Playwright Documentation](https://playwright.dev/)
 - [Testing Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
