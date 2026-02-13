@@ -1,13 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// require('dotenv').config();
-
-/**
- * See https://playwright.dev/docs/test-configuration.
+ * End-to-End Test Configuration
+ * 
+ * Prerequisites:
+ * 1. PostgreSQL database running on localhost:5432
+ * 2. Database schema initialized (npm run db:push)
+ * 3. Environment variables configured
+ * 
+ * To run E2E tests:
+ * 1. Start database: docker compose -f docker-compose.dev.yml up -d
+ * 2. Push schema: npm run db:push
+ * 3. Start dev server: npm run dev (in separate terminal)
+ * 4. Run tests: npm run test:e2e
+ * 
+ * Note: This project uses Replit authentication which requires specific environment
+ * variables. For local testing, ensure all required environment variables are set.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -61,11 +69,19 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
+  /* 
+   * Optional: Configure web server to start automatically before tests
+   * Uncomment this section if you want Playwright to start the server automatically
+   * 
+   * Note: Requires all environment variables to be properly configured
+   */
+  /*
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
+  */
 });
+

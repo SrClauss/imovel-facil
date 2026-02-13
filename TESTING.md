@@ -386,7 +386,37 @@ Priority areas for testing:
 
 The project now includes comprehensive end-to-end tests using **Playwright** to test complete user workflows and interactions.
 
+### Prerequisites for E2E Tests
+
+Before running E2E tests, ensure the following:
+
+1. **PostgreSQL Database Running**
+   ```bash
+   # Start the development database
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+2. **Database Schema Initialized**
+   ```bash
+   # Push database schema
+   npm run db:push
+   ```
+
+3. **Development Server Running**
+   ```bash
+   # Start the development server in a separate terminal
+   npm run dev
+   ```
+
+4. **Playwright Browsers Installed**
+   ```bash
+   # Install Playwright browsers (first time only)
+   npx playwright install
+   ```
+
 ### Running E2E Tests
+
+Once the prerequisites are met, run the tests:
 
 ```bash
 # Run all E2E tests
