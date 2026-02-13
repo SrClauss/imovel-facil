@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import axios from "axios";
 import { useAuth } from "@/hooks/use-auth";
+import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -83,6 +84,7 @@ export default function AdminUsers() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
           <div className="flex items-center justify-between mb-4">
