@@ -34,7 +34,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npx drizzle-kit push && node dist/index.cjs"
+    command: node dist/index.cjs
 
 volumes:
   postgres_data:

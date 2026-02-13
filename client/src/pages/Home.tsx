@@ -161,7 +161,7 @@ export default function Home() {
               Nenhum imóvel encontrado com estes filtros.
             </h3>
             <Button
-              variant="link"
+              variant="ghost"
               onClick={() =>
                 setFilters({ type: "sale", category: "", neighborhood: "" })
               }

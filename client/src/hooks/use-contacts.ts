@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { api, type InsertContact } from "@shared/routes";
+import { api } from "@shared/routes";
+import type { InsertContact } from "@shared/schema";
 
 export function useCreateContact() {
   return useMutation({

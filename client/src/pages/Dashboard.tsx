@@ -57,7 +57,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      window.location.href = "/api/login";
+      // Redirect to local login page (offers OIDC as alternative)
+      window.location.href = "/login";
     }
   }, [authLoading, user]);
 
@@ -101,6 +102,16 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            {user?.role === "admin" && (
+              <Button
+                variant="ghost"
+                onClick={() => (window.location.href = "/admin/users")}
+                className="border border-border"
+                data-testid="admin-users-btn"
+              >
+                Administração de Usuários
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => logout()}

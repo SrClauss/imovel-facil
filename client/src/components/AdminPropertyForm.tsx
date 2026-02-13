@@ -63,11 +63,17 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
 
   const onSubmit = async (data: FormValues) => {
     try {
+      // Transform imageUrls from string to array
+      const transformedData = {
+        ...data,
+        imageUrls: data.imageUrls.split(',').map(s => s.trim()).filter(Boolean)
+      };
+
       if (property) {
-        await updateMutation.mutateAsync({ id: property.id, ...data });
+        await updateMutation.mutateAsync({ id: property.id, ...transformedData });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
-        await createMutation.mutateAsync(data as any);
+        await createMutation.mutateAsync(transformedData as any);
         toast({ title: "Sucesso", description: "Imóvel cadastrado." });
       }
       onSuccess?.();

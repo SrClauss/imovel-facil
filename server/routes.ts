@@ -3,7 +3,11 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { authStorage } from "./replit_integrations/auth/storage";
+import { db } from "./db";
+import { users } from "@shared/models/auth";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -71,6 +75,46 @@ export async function registerRoutes(
   app.delete(api.properties.delete.path, isAuthenticated, async (req, res) => {
     await storage.deleteProperty(Number(req.params.id));
     res.status(204).end();
+  });
+
+  // Admin user management endpoints
+  function ensureAdmin(req: any, res: any, next: any) {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    authStorage.getUser(userId).then((u) => {
+      if (!u || (u as any).role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      next();
+    }).catch(next);
+  }
+
+  app.get("/api/admin/users", isAuthenticated, ensureAdmin, async (_req, res) => {
+    const all = await db.select().from(users).orderBy(users.createdAt);
+    res.json(all.map((u) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: (u as any).role })));
+  });
+
+  app.post("/api/admin/users", isAuthenticated, ensureAdmin, async (req, res) => {
+    const { email, firstName, lastName, role } = req.body || {};
+    if (!email) return res.status(400).json({ message: "email required" });
+    try {
+      const inserted = await db.insert(users).values({ email, firstName, lastName, role: role || "user" }).returning();
+      res.status(201).json(inserted[0]);
+    } catch (err) {
+      res.status(500).json({ message: "failed to create user" });
+    }
+  });
+
+  app.put("/api/admin/users/:id", isAuthenticated, ensureAdmin, async (req, res) => {
+    const id = req.params.id;
+    const { role } = req.body || {};
+    if (!role) return res.status(400).json({ message: "role required" });
+    await db.update(users).set({ role }).where(eq(users.id, id));
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/admin/users/:id", isAuthenticated, ensureAdmin, async (req, res) => {
+    const id = req.params.id;
+    await db.delete(users).where(eq(users.id, id));
+    res.json({ ok: true });
   });
 
   // Contacts API

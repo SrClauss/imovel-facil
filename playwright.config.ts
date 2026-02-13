@@ -77,7 +77,7 @@ export default defineConfig({
    */
   /*
   webServer: {
-    command: 'npm run dev',
+    command: 'DATABASE_URL="postgres://postgres:postgres@localhost:5432/imovel_facil" npm run dev',
     url: 'http://localhost:5000',
     reuseExistingServer: true,
     timeout: 120 * 1000,

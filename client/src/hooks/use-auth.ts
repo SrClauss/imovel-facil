@@ -18,6 +18,12 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
+  // try local logout endpoint first (development helper), then fallback to OIDC logout
+  try {
+    await fetch("/api/local-logout", { method: "POST", credentials: "include" });
+  } catch (err) {
+    // ignore
+  }
   window.location.href = "/api/logout";
 }
 
@@ -29,6 +35,17 @@ export function useAuth() {
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // keep zustand store in sync for components that rely on it
+  try {
+    // dynamic import to avoid issues in non-browser env
+    const { useAuthStore } = require("../stores/authStore");
+    if (user !== undefined) {
+      useAuthStore.getState().setUser(user as any);
+    }
+  } catch (e) {
+    // ignore in server/test env
+  }
 
   const logoutMutation = useMutation({
     mutationFn: logout,

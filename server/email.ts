@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-npm install nodemailer
 
 export const transporter = nodemailer.createTransport({
   service: "gmail",

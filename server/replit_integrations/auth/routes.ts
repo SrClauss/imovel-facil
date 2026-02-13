@@ -15,4 +15,54 @@ export function registerAuthRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  // Local/dev login for quick testing: creates/returns a dev session cookie
+  // Enabled only in non-production environments
+  app.post("/api/local-login", async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ message: "Not available" });
+    }
+
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ message: "Missing credentials" });
+    }
+
+    // default dev user
+    if (username === "admin" && password === "admin123") {
+      const userId = "local-admin";
+      try {
+        await authStorage.upsertUser({
+          id: userId,
+          email: "admin@local",
+          firstName: "Admin",
+          lastName: "Local",
+          role: "admin",
+        });
+
+        // set HTTP-only cookie used by isAuthenticated dev branch
+        const maxAge = 60 * 60 * 24; // 1 day
+        res.setHeader(
+          "Set-Cookie",
+          `dev_user=${userId}; Path=/; HttpOnly; Max-Age=${maxAge}; SameSite=Lax`
+        );
+
+        return res.json({ ok: true });
+      } catch (err) {
+        console.error("local-login error:", err);
+        return res.status(500).json({ message: "Failed to create dev user" });
+      }
+    }
+
+    return res.status(401).json({ message: "Invalid credentials" });
+  });
+
+  // clear dev cookie
+  app.post("/api/local-logout", async (_req, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).end();
+    }
+    res.setHeader("Set-Cookie", `dev_user=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax`);
+    res.json({ ok: true });
+  });
 }

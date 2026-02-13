@@ -61,6 +61,13 @@ async function upsertUser(claims: any) {
 }
 
 export async function setupAuth(app: Express) {
+  // If Replit Auth isn't configured via environment variables, skip setup.
+  // This prevents startup failures when REPL_ID or SESSION_SECRET are not set.
+  if (!process.env.REPL_ID || !process.env.SESSION_SECRET) {
+    console.log("Replit Auth not configured; skipping auth setup.");
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -130,10 +137,34 @@ export async function setupAuth(app: Express) {
   });
 }
 
+function parseCookieHeader(cookieHeader?: string) {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+  cookieHeader.split(";").forEach((c) => {
+    const idx = c.indexOf("=");
+    if (idx === -1) return;
+    const name = c.slice(0, idx).trim();
+    const value = c.slice(idx + 1).trim();
+    cookies[name] = decodeURIComponent(value);
+  });
+  return cookies;
+}
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Development/local shortcut: accept a dev cookie 'dev_user' to authenticate quickly
+  if (process.env.NODE_ENV !== "production") {
+    const cookies = parseCookieHeader(req.headers.cookie as string | undefined);
+    const devUser = cookies["dev_user"];
+    if (devUser) {
+      // provide minimal user shape expected by other code
+      req.user = { claims: { sub: devUser }, expires_at: Math.floor(Date.now() / 1000) + 24 * 60 * 60 } as any;
+      return next();
+    }
+  }
+
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 

@@ -30,7 +30,6 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/shared ./shared
-COPY --from=builder /app/migrations ./migrations
 
 # Expose port
 EXPOSE 5000
