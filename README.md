@@ -87,6 +87,21 @@ docker-compose logs -f
 docker-compose up -d --build
 ```
 
+### Development with Docker Database
+
+For local development, you can run just the PostgreSQL database in Docker:
+
+```bash
+# Start PostgreSQL in Docker
+npm run docker:dev:up
+
+# Now run the app locally with access to the Docker database
+npm run dev
+
+# Stop the database when done
+npm run docker:dev:down
+```
+
 ## 💻 Local Development
 
 ### Setup
