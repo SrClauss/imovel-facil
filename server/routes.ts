@@ -8,6 +8,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
 import { users } from "@shared/models/auth";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -98,7 +99,6 @@ export async function registerRoutes(
     try {
       let passwordHash: string | undefined = undefined;
       if (password) {
-        const bcrypt = await import("bcryptjs");
         passwordHash = await bcrypt.hash(password, 12);
       }
       const inserted = await db
@@ -117,7 +117,6 @@ export async function registerRoutes(
     const updates: any = {};
     if (role) updates.role = role;
     if (password) {
-      const bcrypt = await import("bcryptjs");
       updates.passwordHash = await bcrypt.hash(password, 12);
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: "role or password required" });
@@ -169,7 +168,6 @@ async function ensureAdminUser() {
       return;
     }
 
-    const bcrypt = await import("bcryptjs");
     const password = process.env.ADMIN_PASSWORD || "admin123";
     const passwordHash = await bcrypt.hash(password, 12);
 
