@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { db } from "../../db";
+import { users } from "@shared/models/auth";
+import { eq, or } from "drizzle-orm";
 
 // Register auth-specific routes
 export function registerAuthRoutes(app: Express): void {
@@ -31,13 +34,17 @@ export function registerAuthRoutes(app: Express): void {
 
     // try DB users (username OR email)
     try {
-      const user = await authStorage.getUserByIdentifier(username);
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.username, username), eq(users.email, username)));
+      
       if (!user || !user.passwordHash) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // verify password using scrypt
-      const [salt, storedHash] = (user as any).passwordHash.split("_");
+      const [salt, storedHash] = user.passwordHash.split("_");
       const { scryptSync } = await import("crypto");
       const hash = scryptSync(password, salt, 64).toString("hex");
       
