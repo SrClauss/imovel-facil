@@ -8,7 +8,14 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
 import { users } from "@shared/models/auth";
-import * as bcrypt from "bcryptjs";
+import { scryptSync, randomBytes } from "crypto";
+
+// Helper function to hash passwords using Node.js crypto  
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -99,7 +106,7 @@ export async function registerRoutes(
     try {
       let passwordHash: string | undefined = undefined;
       if (password) {
-        passwordHash = await bcrypt.hash(password, 12);
+        passwordHash = hashPassword(password);
       }
       const inserted = await db
         .insert(users)
@@ -117,7 +124,7 @@ export async function registerRoutes(
     const updates: any = {};
     if (role) updates.role = role;
     if (password) {
-      updates.passwordHash = await bcrypt.hash(password, 12);
+      updates.passwordHash = hashPassword(password);
     }
     if (!Object.keys(updates).length) return res.status(400).json({ message: "role or password required" });
     await db.update(users).set(updates).where(eq(users.id, id));
@@ -169,7 +176,7 @@ async function ensureAdminUser() {
     }
 
     const password = process.env.ADMIN_PASSWORD || "admin123";
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = hashPassword(password);
 
     const [newAdmin] = await db
       .insert(users)
