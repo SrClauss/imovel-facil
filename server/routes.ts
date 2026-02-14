@@ -14,7 +14,7 @@ import { scryptSync, randomBytes } from "crypto";
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
+  return `${salt}_${hash}`;
 }
 
 export async function registerRoutes(
