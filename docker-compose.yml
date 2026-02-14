@@ -37,6 +37,18 @@ services:
         condition: service_healthy
     command: node dist/index.cjs
 
+  nginx:
+    image: nginx:stable-alpine
+    container_name: imovel-facil-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8080:80"
+    depends_on:
+      - app
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   postgres_data:
     driver: local
