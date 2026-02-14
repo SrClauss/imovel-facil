@@ -19,7 +19,10 @@ export function registerAuthRoutes(app: Express): void {
   // Local/dev login for quick testing: creates/returns a dev session cookie
   // Enabled only in non-production environments
   app.post("/api/local-login", async (req: any, res) => {
-    if (process.env.NODE_ENV === "production") {
+    // allow local-login in non-production OR when explicitly enabled via env
+    console.log(`[DEBUG] NODE_ENV=${process.env.NODE_ENV}, ALLOW_LOCAL_LOGIN=${process.env.ALLOW_LOCAL_LOGIN}`);
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_LOCAL_LOGIN !== "true") {
+      console.log("[DEBUG] Rejecting local-login: production mode without ALLOW_LOCAL_LOGIN");
       return res.status(404).json({ message: "Not available" });
     }
 
@@ -54,7 +57,29 @@ export function registerAuthRoutes(app: Express): void {
       }
     }
 
-    return res.status(401).json({ message: "Invalid credentials" });
+    // try DB users (username OR email)
+    try {
+      const user = await authStorage.getUserByIdentifier(username);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const bcrypt = await import("bcryptjs");
+      const ok = await bcrypt.compare(password, (user as any).passwordHash);
+      if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+
+      // set HTTP-only cookie used by isAuthenticated dev branch
+      const maxAge = 60 * 60 * 24; // 1 day
+      res.setHeader(
+        "Set-Cookie",
+        `dev_user=${user.id}; Path=/; HttpOnly; Max-Age=${maxAge}; SameSite=Lax`
+      );
+
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("local-login db error:", err);
+      return res.status(500).json({ message: "Authentication failed" });
+    }
   });
 
   // clear dev cookie
