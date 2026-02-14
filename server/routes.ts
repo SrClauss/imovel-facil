@@ -93,10 +93,18 @@ export async function registerRoutes(
   });
 
   app.post("/api/admin/users", isAuthenticated, ensureAdmin, async (req, res) => {
-    const { email, firstName, lastName, role } = req.body || {};
+    const { email, firstName, lastName, role, username, password } = req.body || {};
     if (!email) return res.status(400).json({ message: "email required" });
     try {
-      const inserted = await db.insert(users).values({ email, firstName, lastName, role: role || "user" }).returning();
+      let passwordHash: string | undefined = undefined;
+      if (password) {
+        const bcrypt = await import("bcryptjs");
+        passwordHash = await bcrypt.hash(password, 12);
+      }
+      const inserted = await db
+        .insert(users)
+        .values({ email, firstName, lastName, role: role || "user", username, passwordHash } as any)
+        .returning();
       res.status(201).json(inserted[0]);
     } catch (err) {
       res.status(500).json({ message: "failed to create user" });
@@ -105,9 +113,15 @@ export async function registerRoutes(
 
   app.put("/api/admin/users/:id", isAuthenticated, ensureAdmin, async (req, res) => {
     const id = req.params.id;
-    const { role } = req.body || {};
-    if (!role) return res.status(400).json({ message: "role required" });
-    await db.update(users).set({ role }).where(eq(users.id, id));
+    const { role, password } = req.body || {};
+    const updates: any = {};
+    if (role) updates.role = role;
+    if (password) {
+      const bcrypt = await import("bcryptjs");
+      updates.passwordHash = await bcrypt.hash(password, 12);
+    }
+    if (!Object.keys(updates).length) return res.status(400).json({ message: "role or password required" });
+    await db.update(users).set(updates).where(eq(users.id, id));
     res.json({ ok: true });
   });
 
@@ -134,10 +148,47 @@ export async function registerRoutes(
     }
   });
 
+  // Ensure admin exists
+  await ensureAdminUser();
+
   // Seed Data
   await seedDatabase();
 
   return httpServer;
+}
+
+async function ensureAdminUser() {
+  try {
+    const [existingAdmin] = await db.select().from(users).where(eq(users.role, "admin"));
+    if (existingAdmin) return;
+
+    const [byUsername] = await db.select().from(users).where(eq(users.username, "admin"));
+    if (byUsername) {
+      await db.update(users).set({ role: "admin" }).where(eq(users.username, "admin"));
+      console.log("Promoted existing user 'admin' to role 'admin'");
+      return;
+    }
+
+    const bcrypt = await import("bcryptjs");
+    const password = process.env.ADMIN_PASSWORD || "admin123";
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const [newAdmin] = await db
+      .insert(users)
+      .values({
+        username: "admin",
+        email: "admin@local",
+        firstName: "Admin",
+        lastName: "Local",
+        role: "admin",
+        passwordHash,
+      })
+      .returning();
+
+    console.log(`Created default admin 'admin' (${process.env.ADMIN_PASSWORD ? 'ADMIN_PASSWORD' : 'admin123'})`);
+  } catch (err) {
+    console.error('ensureAdminUser error:', err);
+  }
 }
 
 async function seedDatabase() {
