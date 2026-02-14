@@ -20,41 +20,13 @@ export function registerAuthRoutes(app: Express): void {
   // Enabled only in non-production environments
   app.post("/api/local-login", async (req: any, res) => {
     // allow local-login in non-production OR when explicitly enabled via env
-    console.log(`[DEBUG] NODE_ENV=${process.env.NODE_ENV}, ALLOW_LOCAL_LOGIN=${process.env.ALLOW_LOCAL_LOGIN}`);
     if (process.env.NODE_ENV === "production" && process.env.ALLOW_LOCAL_LOGIN !== "true") {
-      console.log("[DEBUG] Rejecting local-login: production mode without ALLOW_LOCAL_LOGIN");
       return res.status(404).json({ message: "Not available" });
     }
 
     const { username, password } = req.body || {};
     if (!username || !password) {
       return res.status(400).json({ message: "Missing credentials" });
-    }
-
-    // default dev user
-    if (username === "admin" && password === "admin123") {
-      const userId = "local-admin";
-      try {
-        await authStorage.upsertUser({
-          id: userId,
-          email: "admin@local",
-          firstName: "Admin",
-          lastName: "Local",
-          role: "admin",
-        });
-
-        // set HTTP-only cookie used by isAuthenticated dev branch
-        const maxAge = 60 * 60 * 24; // 1 day
-        res.setHeader(
-          "Set-Cookie",
-          `dev_user=${userId}; Path=/; HttpOnly; Max-Age=${maxAge}; SameSite=Lax`
-        );
-
-        return res.json({ ok: true });
-      } catch (err) {
-        console.error("local-login error:", err);
-        return res.status(500).json({ message: "Failed to create dev user" });
-      }
     }
 
     // try DB users (username OR email)
@@ -64,9 +36,14 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const bcrypt = await import("bcryptjs");
-      const ok = await bcrypt.compare(password, (user as any).passwordHash);
-      if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+      // verify password using scrypt
+      const [salt, storedHash] = (user as any).passwordHash.split("_");
+      const { scryptSync } = await import("crypto");
+      const hash = scryptSync(password, salt, 64).toString("hex");
+      
+      if (hash !== storedHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
 
       // set HTTP-only cookie used by isAuthenticated dev branch
       const maxAge = 60 * 60 * 24; // 1 day
