@@ -8,7 +8,7 @@ import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integra
 import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
 import { users } from "@shared/models/auth";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 
 export async function registerRoutes(
   httpServer: Server,
