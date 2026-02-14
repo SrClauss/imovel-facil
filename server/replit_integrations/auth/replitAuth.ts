@@ -153,13 +153,10 @@ function parseCookieHeader(cookieHeader?: string) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // Development/local shortcut: accept a dev cookie 'dev_user' to authenticate quickly
   // Also allow when ALLOW_LOCAL_LOGIN is explicitly enabled in the environment
-  console.log(`[DEBUG isAuthenticated] NODE_ENV=${process.env.NODE_ENV}, ALLOW_LOCAL_LOGIN=${process.env.ALLOW_LOCAL_LOGIN}`);
   if (process.env.NODE_ENV !== "production" || process.env.ALLOW_LOCAL_LOGIN === "true") {
     const cookies = parseCookieHeader(req.headers.cookie as string | undefined);
-    console.log(`[DEBUG isAuthenticated] cookies:`, cookies);
     const devUser = cookies["dev_user"];
     if (devUser) {
-      console.log(`[DEBUG isAuthenticated] Found dev_user cookie:`, devUser);
       // provide minimal user shape expected by other code
       req.user = { claims: { sub: devUser }, expires_at: Math.floor(Date.now() / 1000) + 24 * 60 * 60 } as any;
       return next();
