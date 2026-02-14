@@ -166,19 +166,15 @@ export async function registerRoutes(
 async function ensureAdminUser() {
   try {
     const [existingAdmin] = await db.select().from(users).where(eq(users.role, "admin"));
-    if (existingAdmin) return;
-
-    const [byUsername] = await db.select().from(users).where(eq(users.username, "admin"));
-    if (byUsername) {
-      await db.update(users).set({ role: "admin" }).where(eq(users.username, "admin"));
-      console.log("Promoted existing user 'admin' to role 'admin'");
+    if (existingAdmin) {
+      console.log("Admin user already exists");
       return;
     }
 
     const password = process.env.ADMIN_PASSWORD || "admin123";
     const passwordHash = hashPassword(password);
 
-    const [newAdmin] = await db
+    await db
       .insert(users)
       .values({
         username: "admin",
@@ -187,8 +183,7 @@ async function ensureAdminUser() {
         lastName: "Local",
         role: "admin",
         passwordHash,
-      })
-      .returning();
+      });
 
     console.log(`Created default admin 'admin' (${process.env.ADMIN_PASSWORD ? 'ADMIN_PASSWORD' : 'admin123'})`);
   } catch (err) {
