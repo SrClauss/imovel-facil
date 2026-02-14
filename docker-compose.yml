@@ -31,10 +31,6 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/imovel_facil
       NODE_ENV: production
       PORT: 5000
-      # allow local username/password login for development/testing inside container
-      ALLOW_LOCAL_LOGIN: "true"
-      # allow local username/password login for development/testing inside container
-      ALLOW_LOCAL_LOGIN: "true"
     depends_on:
       postgres:
         condition: service_healthy
