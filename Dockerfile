@@ -6,6 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++ postgresql-dev
+
 # Install all dependencies (including dev dependencies for building)
 RUN npm ci
 
