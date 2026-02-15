@@ -25,11 +25,11 @@ import { z } from "zod";
 
 // Extend schema to handle strings from inputs that should be numbers
 const formSchema = insertPropertySchema.extend({
-  price: z.coerce.number(), // Handle decimal as number input
+  price: z.coerce.string(), // Handle decimal as string to match API schema
   bedrooms: z.coerce.number(),
   bathrooms: z.coerce.number(),
   area: z.coerce.number(),
-  imageUrls: z.string().transform((str) => str.split(',').map(s => s.trim()).filter(Boolean)), // Comma separated string -> array
+  imageUrls: z.string(), // Keep as string, convert in onSubmit
 });
 
 type FormValues = z.input<typeof formSchema>;
@@ -51,7 +51,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
       description: property?.description || "",
       type: (property?.type as "sale" | "rent") || "sale",
       category: property?.category || "house",
-      price: property?.price?.toString() || "0",
+      price: property?.price || "0",
       neighborhood: property?.neighborhood || "",
       bedrooms: property?.bedrooms || 0,
       bathrooms: property?.bathrooms || 0,
@@ -63,11 +63,17 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
 
   const onSubmit = async (data: FormValues) => {
     try {
+      // Convert imageUrls from comma-separated string to array
+      const processedData = {
+        ...data,
+        imageUrls: data.imageUrls.split(',').map(s => s.trim()).filter(Boolean),
+      };
+      
       if (property) {
-        await updateMutation.mutateAsync({ id: property.id, ...data });
+        await updateMutation.mutateAsync({ id: property.id, ...processedData });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
-        await createMutation.mutateAsync(data as any);
+        await createMutation.mutateAsync(processedData);
         toast({ title: "Sucesso", description: "Imóvel cadastrado." });
       }
       onSuccess?.();
