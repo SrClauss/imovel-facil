@@ -29,9 +29,7 @@ const formSchema = insertPropertySchema.extend({
   bedrooms: z.coerce.number(),
   bathrooms: z.coerce.number(),
   area: z.coerce.number(),
-  imageUrls: z.union([z.array(z.string()), z.string()]).transform((val) => 
-    typeof val === 'string' ? val.split(',').map(s => s.trim()).filter(Boolean) : val
-  ), // Accept string or array, transform string to array
+  imageUrls: z.string().transform((str) => str.split(',').map(s => s.trim()).filter(Boolean)), // Comma separated string -> array
 });
 
 type FormValues = z.input<typeof formSchema>;
