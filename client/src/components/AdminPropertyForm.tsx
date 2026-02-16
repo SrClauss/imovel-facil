@@ -68,6 +68,9 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
     },
   });
 
+  // Watch imageUrls field for changes
+  const imageUrlsValue = form.watch("imageUrls");
+
   const onSubmit = async (data: FormValues) => {
     console.log("Submitting property:", JSON.stringify(data, null, 2));
 
@@ -249,160 +252,108 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
             )}
           />
 
-          {/* Image upload UI (stores URLs in `imageUrls` textarea) */}
+          {/* Image upload UI */}
           <FormItem className="col-span-2">
             <FormLabel>Imagens</FormLabel>
 
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={async (e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (!files.length) return;
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
 
-                    // immediate local previews so user sees selection even if upload fails
-                    const localUrls = files.map((f) => URL.createObjectURL(f));
-                    setLocalPreviews((p) => [...p, ...localUrls]);
+                const fd = new FormData();
+                files.forEach((f) => fd.append("files", f));
 
-                    const fd = new FormData();
-                    files.forEach((f) => fd.append("files", f));
+                setUploading(true);
+                try {
+                  const res = await fetch(api.uploads.upload.path, {
+                    method: api.uploads.upload.method,
+                    body: fd,
+                    credentials: "include",
+                  });
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    const msg = json?.message || "Falha ao enviar imagens";
+                    toast({ title: "Erro no upload", description: msg, variant: "destructive" });
+                    return;
+                  }
 
-                    setUploading(true);
-                    try {
-                      const res = await fetch(api.uploads.upload.path, {
-                        method: api.uploads.upload.method,
-                        body: fd,
-                        credentials: "include",
-                      });
-                      const json = await res.json().catch(() => ({}));
-                      if (!res.ok) {
-                        const msg = json?.message || "Falha ao enviar imagens";
-                        toast({ title: "Erro no upload", description: msg, variant: "destructive" });
-                        // Remove local previews on error
-                        setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
-                        localUrls.forEach((url) => URL.revokeObjectURL(url));
-                        return;
-                      }
+                  const returned: string[] = json.urls || [];
+                  const current = imageUrlsValue || "";
+                  const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                  form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
+                  
+                  // Mark that there are unsaved changes
+                  setHasUnsavedImages(true);
+                  
+                  toast({ 
+                    title: "Upload concluído", 
+                    description: `${returned.length} imagem(ns) adicionadas. CLIQUE EM SALVAR ALTERAÇÕES para persistir!`,
+                    duration: 8000
+                  });
+                } catch (err: any) {
+                  console.error("upload error", err);
+                  toast({ title: "Erro no upload", description: "Verifique sua autenticação / conexão.", variant: "destructive" });
+                } finally {
+                  setUploading(false);
+                  // clear input
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }}
+              className="mb-4"
+            />
 
-                      const returned: string[] = json.urls || [];
-                      const current = (form.getValues().imageUrls || "").toString();
-                      const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
-                      form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
-                      
-                      // Remove local previews after successful upload since URLs are now in form
-                      setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
-                      localUrls.forEach((url) => URL.revokeObjectURL(url));
-                      
-                      // Mark that there are unsaved changes
-                      setHasUnsavedImages(true);
-                      
-                      toast({ 
-                        title: "Upload concluído", 
-                        description: `${returned.length} imagem(ns) adicionadas. CLIQUE EM SALVAR ALTERAÇÕES para persistir!`,
-                        duration: 8000
-                      });
-                    } catch (err: any) {
-                      console.error("upload error", err);
-                      toast({ title: "Erro no upload", description: "Verifique sua autenticação / conexão.", variant: "destructive" });
-                      // Remove local previews on error
-                      setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
-                      localUrls.forEach((url) => URL.revokeObjectURL(url));
-                    } finally {
-                      setUploading(false);
-                      // clear input
-                      (e.target as HTMLInputElement).value = "";
-                    }
-                  }}
-                  className="mb-2"
-                />
-
-                {/* Thumbnails / preview (local + remote). Local previews shown first */}
-                <div className="flex gap-2 flex-wrap">
-                  {localPreviews.map((url) => (
-                    <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
-                      <img src={url} alt="preview-local" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // remove local preview
-                          setLocalPreviews((p) => p.filter((u) => u !== url));
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm"
-                        aria-label="Remover imagem"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-
-                  {(form.getValues().imageUrls || "")
-                    .toString()
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                    .map((url) => (
-                      <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
-                        <img src={url} alt="preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const newUrls = (form.getValues().imageUrls || "")
-                              .toString()
-                              .split(",")
-                              .map((s) => s.trim())
-                              .filter((u) => u && u !== url);
-                            form.setValue("imageUrls", newUrls.join(", "));
-                            // try to delete from server storage if it belongs to our service
-                            try {
-                              await fetch(api.uploads.delete.path, {
-                                method: api.uploads.delete.method,
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ urls: [url] }),
-                                credentials: "include",
-                              });
-                              toast({ title: "Imagem removida" });
-                            } catch (e) {
-                              toast({ title: "Erro", description: "Falha ao remover imagem do storage", variant: "destructive" });
-                            }
-                          }}
-                          className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm"
-                          aria-label="Remover imagem"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                </div>
-
-                {uploading && <div className="text-sm text-muted-foreground mt-2">Enviando imagens...</div>}
-                {hasUnsavedImages && (
-                  <div className="text-sm text-orange-600 dark:text-orange-400 font-medium mt-2 flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>Imagens carregadas. Clique em "Salvar Alterações" abaixo para persistir!</span>
+            {/* Thumbnails / preview */}
+            <div className="flex gap-2 flex-wrap">
+              {(imageUrlsValue || "")
+                .toString()
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((url) => (
+                  <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
+                    <img src={url} alt="preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newUrls = (imageUrlsValue || "")
+                          .toString()
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter((u) => u && u !== url);
+                        form.setValue("imageUrls", newUrls.join(", "));
+                        // try to delete from server storage if it belongs to our service
+                        try {
+                          await fetch(api.uploads.delete.path, {
+                            method: api.uploads.delete.method,
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ urls: [url] }),
+                            credentials: "include",
+                          });
+                          toast({ title: "Imagem removida" });
+                        } catch (e) {
+                          toast({ title: "Erro", description: "Falha ao remover imagem do storage", variant: "destructive" });
+                        }
+                      }}
+                      className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm hover:bg-white"
+                      aria-label="Remover imagem"
+                    >
+                      ✕
+                    </button>
                   </div>
-                )}
-              </div>
-
-              <div className="w-full md:w-1/3">
-                <FormField
-                  control={form.control}
-                  name="imageUrls"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URLs das Imagens (separadas por vírgula)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                ))}
             </div>
+
+            {uploading && <div className="text-sm text-muted-foreground mt-2">Enviando imagens...</div>}
+            {hasUnsavedImages && (
+              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium mt-2 flex items-center gap-2">
+                <span>⚠️</span>
+                <span>Imagens carregadas. Clique em "Salvar Alterações" abaixo para persistir!</span>
+              </div>
+            )}
           </FormItem>
 
           <FormField
