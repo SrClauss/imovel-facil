@@ -47,7 +47,6 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
   const createMutation = useCreateProperty();
   const updateMutation = useUpdateProperty();
 
-  const [localPreviews, setLocalPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [hasUnsavedImages, setHasUnsavedImages] = useState(false);
 
