@@ -73,29 +73,16 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
   const imageUrlsValue = form.watch("imageUrls");
 
   const onSubmit = async (data: FormValues) => {
-    // log the processed payload (imageUrls as array) for easier debugging
-    const payload = {
-      ...data,
-      price: String(data.price),
-      imageUrls: (data.imageUrls || "").toString().split(',').map(s => s.trim()).filter(Boolean),
-    } as any;
-    console.log("Submitting property (payload):", JSON.stringify(payload, null, 2));
-
     // Convert form data to API shape
     const payload = {
       ...data,
       price: String(data.price),
       imageUrls: (data.imageUrls || "").toString().split(',').map(s => s.trim()).filter(Boolean),
     } as any;
+    
+    console.log("Submitting property (payload):", JSON.stringify(payload, null, 2));
 
     try {
-      // Convert imageUrls from comma-separated string to array
-      const processedData = {
-        ...data,
-        imageUrls: data.imageUrls.split(',').map(s => s.trim()).filter(Boolean),
-      };
-      
-      if (property) {
         await updateMutation.mutateAsync({ id: property.id, ...payload });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
