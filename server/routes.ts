@@ -88,7 +88,10 @@ export async function registerRoutes(
   });
 
   // File uploads (images) - sent to MinIO
-  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+  const upload = multer({ 
+    storage: multer.memoryStorage(), 
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  });
 
   app.post("/api/uploads", isAuthenticated, upload.array("files", 10), async (req, res) => {
     const files = (req.files || []) as Express.Multer.File[];
@@ -97,6 +100,14 @@ export async function registerRoutes(
     await ensureBucketExists();
     const urls = await Promise.all(files.map((f) => uploadImage(f.buffer, f.mimetype)));
     res.json({ urls });
+  });
+
+  // Error handler for multer file size errors
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ message: 'Arquivo muito grande. Tamanho máximo: 10MB' });
+    }
+    next(err);
   });
 
   app.delete("/api/uploads", isAuthenticated, async (req, res) => {
