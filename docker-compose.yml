@@ -27,8 +27,9 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio12345
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9001:9001"  # Console only
+    expose:
+      - "9000"  # Internal only, proxied by nginx
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -45,8 +46,8 @@ services:
       dockerfile: Dockerfile
     container_name: imovel-facil-app
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"  # Internal only, proxied by nginx
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/imovel_facil
       NODE_ENV: production
@@ -56,13 +57,31 @@ services:
       MINIO_BUCKET: imovel-facil
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio12345
-      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_PUBLIC_URL: https://www.luizspinolaimoveis.com.br/storage
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
     command: node dist/index.cjs
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: imovel-facil-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+      - minio
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
