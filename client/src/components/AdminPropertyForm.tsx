@@ -83,6 +83,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
     console.log("Submitting property (payload):", JSON.stringify(payload, null, 2));
 
     try {
+      if (property) {
         await updateMutation.mutateAsync({ id: property.id, ...payload });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
