@@ -18,13 +18,14 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  // try local logout endpoint first (development helper), then fallback to OIDC logout
   try {
     await fetch("/api/local-logout", { method: "POST", credentials: "include" });
-  } catch (err) {
-    // ignore
+    const { useAuthStore } = require("../stores/authStore");
+    useAuthStore.getState().setUser(null);
+  } catch (e) {
+    /* ignore */
   }
-  window.location.href = "/api/logout";
+  window.location.href = "/login";
 }
 
 export function useAuth() {
@@ -51,6 +52,12 @@ export function useAuth() {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
+      try {
+        const { useAuthStore } = require("../stores/authStore");
+        useAuthStore.getState().setUser(null);
+      } catch (e) {
+        /* ignore */
+      }
     },
   });
 

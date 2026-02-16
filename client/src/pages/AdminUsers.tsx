@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FaPlus, FaTrash, FaSave, FaEye, FaEyeSlash } from "react-icons/fa";
 
@@ -98,6 +98,7 @@ export default function AdminUsers() {
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Adicionar Corretor</DialogTitle>
+                  <DialogDescription>Preencha os dados do corretor e, se desejar, informe uma senha. O usuário receberá acesso ao painel conforme a role escolhida.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAdd} className="space-y-3 mt-2">
                   <Input placeholder="email" value={email} onChange={(e:any) => setEmail(e.target.value)} required />
@@ -159,6 +160,7 @@ export default function AdminUsers() {
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Alterar senha</DialogTitle>
+                  <DialogDescription>Informe a nova senha para o usuário selecionado. Senhas devem coincidir para confirmar a alteração.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={async (e) => {
                   e.preventDefault();

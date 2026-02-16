@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -135,6 +136,9 @@ export default function Dashboard() {
                       ? "Editar Imóvel"
                       : "Cadastrar Novo Imóvel"}
                   </DialogTitle>
+                  <DialogDescription>
+                    Use este formulário para criar ou editar um imóvel. Campos marcados como obrigatórios devem ser preenchidos antes de salvar.
+                  </DialogDescription>
                 </DialogHeader>
                 <AdminPropertyForm
                   property={editingProperty}
