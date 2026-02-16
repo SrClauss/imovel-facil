@@ -17,6 +17,8 @@ COPY . .
 
 # Build the application
 RUN npm run build
+# write build timestamp to be served with static files for version/debugging
+RUN node -e "require('fs').writeFileSync('dist/public/build_time.txt', new Date().toISOString())"
 
 # Production stage
 FROM node:20-alpine

@@ -32,13 +32,9 @@ export function registerAuthRoutes(app: Express): void {
       return res.status(400).json({ message: "Missing credentials" });
     }
 
-    // try DB users (username OR email)
+    // try storage-backed user lookup (username OR email)
     try {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(or(eq(users.username, username), eq(users.email, username)));
-      
+      const user = await authStorage.getUserByIdentifier(username);
       if (!user || !user.passwordHash) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -47,7 +43,7 @@ export function registerAuthRoutes(app: Express): void {
       const [salt, storedHash] = user.passwordHash.split("_");
       const { scryptSync } = await import("crypto");
       const hash = scryptSync(password, salt, 64).toString("hex");
-      
+
       if (hash !== storedHash) {
         return res.status(401).json({ message: "Invalid credentials" });
       }

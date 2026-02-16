@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@shared/routes";
 import { z } from "zod";
 
 // Extend schema to handle strings from inputs that should be numbers
@@ -29,10 +30,11 @@ const formSchema = insertPropertySchema.extend({
   bedrooms: z.coerce.number(),
   bathrooms: z.coerce.number(),
   area: z.coerce.number(),
-  imageUrls: z.string().transform((str) => str.split(',').map(s => s.trim()).filter(Boolean)), // Comma separated string -> array
+  // keep `imageUrls` as string in the form (comma-separated); convert on submit
+  imageUrls: z.string(),
 });
 
-type FormValues = z.input<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 interface AdminPropertyFormProps {
   property?: Property;
@@ -51,7 +53,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
       description: property?.description || "",
       type: (property?.type as "sale" | "rent") || "sale",
       category: property?.category || "house",
-      price: property?.price?.toString() || "0",
+      price: property?.price ? Number(property.price) : 0,
       neighborhood: property?.neighborhood || "",
       bedrooms: property?.bedrooms || 0,
       bathrooms: property?.bathrooms || 0,
@@ -62,19 +64,30 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
   });
 
   const onSubmit = async (data: FormValues) => {
+    console.log("Submitting property:", JSON.stringify(data, null, 2));
+
+    // Convert form data to API shape
+    const payload = {
+      ...data,
+      price: String(data.price),
+      imageUrls: (data.imageUrls || "").toString().split(',').map(s => s.trim()).filter(Boolean),
+    } as any;
+
     try {
       if (property) {
-        await updateMutation.mutateAsync({ id: property.id, ...data });
+        await updateMutation.mutateAsync({ id: property.id, ...payload });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
-        await createMutation.mutateAsync(data as any);
+        await createMutation.mutateAsync(payload);
         toast({ title: "Sucesso", description: "Imóvel cadastrado." });
       }
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Save property error:", error);
+      const message = error?.message || error?.body?.message || "Falha ao salvar imóvel. Verifique os dados.";
       toast({ 
         title: "Erro", 
-        description: "Falha ao salvar imóvel. Verifique os dados.", 
+        description: message, 
         variant: "destructive" 
       });
     }
@@ -230,19 +243,102 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="imageUrls"
-            render={({ field }) => (
-              <FormItem className="col-span-2">
-                <FormLabel>URLs das Imagens (separadas por vírgula)</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Image upload UI (stores URLs in `imageUrls` textarea) */}
+          <FormItem className="col-span-2">
+            <FormLabel>Imagens</FormLabel>
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    const fd = new FormData();
+                    files.forEach((f) => fd.append("files", f));
+
+                    try {
+                      const res = await fetch(api.uploads.upload.path, {
+                        method: api.uploads.upload.method,
+                        body: fd,
+                        credentials: "include",
+                      });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json?.message || "Upload failed");
+                      const returned: string[] = json.urls || [];
+                      const current = (form.getValues().imageUrls || "").toString();
+                      const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                      form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
+                    } catch (err: any) {
+                      console.error("upload error", err);
+                    } finally {
+                      // clear input
+                      (e.target as HTMLInputElement).value = "";
+                    }
+                  }}
+                  className="mb-2"
+                />
+
+                {/* Thumbnails / preview */}
+                <div className="flex gap-2 flex-wrap">
+                  {(form.getValues().imageUrls || "")
+                    .toString()
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((url) => (
+                      <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
+                        <img src={url} alt="preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const newUrls = (form.getValues().imageUrls || "")
+                              .toString()
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter((u) => u && u !== url);
+                            form.setValue("imageUrls", newUrls.join(", "));
+                            // try to delete from server storage if it belongs to our service
+                            try {
+                              await fetch(api.uploads.delete.path, {
+                                method: api.uploads.delete.method,
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ urls: [url] }),
+                                credentials: "include",
+                              });
+                            } catch (e) {
+                              /* ignore */
+                            }
+                          }}
+                          className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm"
+                          aria-label="Remover imagem"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              <div className="w-full md:w-1/3">
+                <FormField
+                  control={form.control}
+                  name="imageUrls"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URLs das Imagens (separadas por vírgula)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </FormItem>
 
           <FormField
             control={form.control}

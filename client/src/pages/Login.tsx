@@ -58,11 +58,11 @@ export default function Login() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="username">Usuário</Label>
+                <Label htmlFor="username">Usuário ou email</Label>
               <Input
                 id="username"
                 name="username"
-                placeholder="admin"
+                placeholder="usuário ou email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
