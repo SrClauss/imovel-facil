@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPropertySchema, type Property } from "@shared/schema";
@@ -45,6 +46,9 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
   const { toast } = useToast();
   const createMutation = useCreateProperty();
   const updateMutation = useUpdateProperty();
+
+  const [localPreviews, setLocalPreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -256,24 +260,38 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                   onChange={async (e) => {
                     const files = Array.from(e.target.files || []);
                     if (!files.length) return;
+
+                    // immediate local previews so user sees selection even if upload fails
+                    const localUrls = files.map((f) => URL.createObjectURL(f));
+                    setLocalPreviews((p) => [...p, ...localUrls]);
+
                     const fd = new FormData();
                     files.forEach((f) => fd.append("files", f));
 
+                    setUploading(true);
                     try {
                       const res = await fetch(api.uploads.upload.path, {
                         method: api.uploads.upload.method,
                         body: fd,
                         credentials: "include",
                       });
-                      const json = await res.json();
-                      if (!res.ok) throw new Error(json?.message || "Upload failed");
+                      const json = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        const msg = json?.message || "Falha ao enviar imagens";
+                        toast({ title: "Erro no upload", description: msg, variant: "destructive" });
+                        return;
+                      }
+
                       const returned: string[] = json.urls || [];
                       const current = (form.getValues().imageUrls || "").toString();
                       const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
                       form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
+                      toast({ title: "Upload concluído", description: `${returned.length} imagem(ns) adicionadas.` });
                     } catch (err: any) {
                       console.error("upload error", err);
+                      toast({ title: "Erro no upload", description: "Verifique sua autenticação / conexão.", variant: "destructive" });
                     } finally {
+                      setUploading(false);
                       // clear input
                       (e.target as HTMLInputElement).value = "";
                     }
@@ -281,8 +299,26 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                   className="mb-2"
                 />
 
-                {/* Thumbnails / preview */}
+                {/* Thumbnails / preview (local + remote). Local previews shown first */}
                 <div className="flex gap-2 flex-wrap">
+                  {localPreviews.map((url) => (
+                    <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
+                      <img src={url} alt="preview-local" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // remove local preview
+                          setLocalPreviews((p) => p.filter((u) => u !== url));
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm"
+                        aria-label="Remover imagem"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
                   {(form.getValues().imageUrls || "")
                     .toString()
                     .split(",")
@@ -308,8 +344,9 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                                 body: JSON.stringify({ urls: [url] }),
                                 credentials: "include",
                               });
+                              toast({ title: "Imagem removida" });
                             } catch (e) {
-                              /* ignore */
+                              toast({ title: "Erro", description: "Falha ao remover imagem do storage", variant: "destructive" });
                             }
                           }}
                           className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm"
@@ -320,6 +357,8 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                       </div>
                     ))}
                 </div>
+
+                {uploading && <div className="text-sm text-muted-foreground mt-2">Enviando imagens...</div>}
               </div>
 
               <div className="w-full md:w-1/3">
