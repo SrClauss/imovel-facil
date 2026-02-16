@@ -53,8 +53,18 @@ export function useCreateProperty() {
         body: JSON.stringify(validated),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to create property");
-      return api.properties.create.responses[201].parse(await res.json());
+      const text = await res.text();
+      let parsed: any = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch (e) {}
+      if (!res.ok) {
+        const msg = parsed?.message || res.statusText || `Request failed with status ${res.status}`;
+        const err: any = new Error(msg);
+        err.status = res.status;
+        err.body = parsed;
+        throw err;
+      }
+      const json = parsed ?? JSON.parse(text);
+      return api.properties.create.responses[201].parse(json);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.properties.list.path] }),
   });
@@ -73,8 +83,18 @@ export function useUpdateProperty() {
         body: JSON.stringify(validated),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to update property");
-      return api.properties.update.responses[200].parse(await res.json());
+      const text = await res.text();
+      let parsed: any = null;
+      try { parsed = text ? JSON.parse(text) : null; } catch (e) {}
+      if (!res.ok) {
+        const msg = parsed?.message || res.statusText || `Request failed with status ${res.status}`;
+        const err: any = new Error(msg);
+        err.status = res.status;
+        err.body = parsed;
+        throw err;
+      }
+      const json = parsed ?? JSON.parse(text);
+      return api.properties.update.responses[200].parse(json);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.properties.list.path] }),
   });

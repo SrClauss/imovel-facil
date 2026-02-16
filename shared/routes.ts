@@ -81,6 +81,25 @@ export const api = {
       },
     },
   },
+  uploads: {
+    upload: {
+      method: 'POST' as const,
+      path: '/api/uploads',
+      responses: {
+        200: z.object({ urls: z.array(z.string()) }),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/uploads',
+      input: z.object({ urls: z.array(z.string()) }),
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        400: errorSchemas.validation,
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

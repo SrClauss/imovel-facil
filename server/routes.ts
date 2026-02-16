@@ -9,6 +9,8 @@ import { authStorage } from "./replit_integrations/auth/storage";
 import { db } from "./db";
 import { users } from "@shared/models/auth";
 import { scryptSync, randomBytes } from "crypto";
+import multer from "multer";
+import { ensureBucketExists, uploadImage, deleteObjects, isMinioUrl, extractKeyFromUrl } from "./minio";
 
 // Helper function to hash passwords using Node.js crypto  
 function hashPassword(password: string): string {
@@ -83,6 +85,37 @@ export async function registerRoutes(
   app.delete(api.properties.delete.path, isAuthenticated, async (req, res) => {
     await storage.deleteProperty(Number(req.params.id));
     res.status(204).end();
+  });
+
+  // File uploads (images) - sent to MinIO
+  const upload = multer({ 
+    storage: multer.memoryStorage(), 
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  });
+
+  app.post("/api/uploads", isAuthenticated, upload.array("files", 10), async (req, res) => {
+    const files = (req.files || []) as Express.Multer.File[];
+    if (!files.length) return res.status(400).json({ message: "no files" });
+    // ensure bucket exists before uploading
+    await ensureBucketExists();
+    const urls = await Promise.all(files.map((f) => uploadImage(f.buffer, f.mimetype)));
+    res.json({ urls });
+  });
+
+  // Error handler for multer file size errors
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ message: 'Arquivo muito grande. Tamanho máximo: 10MB' });
+    }
+    next(err);
+  });
+
+  app.delete("/api/uploads", isAuthenticated, async (req, res) => {
+    const { urls } = req.body || {};
+    if (!Array.isArray(urls)) return res.status(400).json({ message: "urls required" });
+    const keys = (urls as string[]).filter(isMinioUrl).map(extractKeyFromUrl).filter(Boolean);
+    if (keys.length) await deleteObjects(keys);
+    res.json({ ok: true });
   });
 
   // Admin user management endpoints

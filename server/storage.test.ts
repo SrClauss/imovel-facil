@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DatabaseStorage } from "./storage";
 import { db } from "./db";
+import * as minio from "./minio";
 import type { InsertProperty, InsertContact, Property } from "@shared/schema";
 
 // Mock the database
@@ -11,6 +12,13 @@ vi.mock("./db", () => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+}));
+
+// Mock minio helper functions
+vi.mock("./minio", () => ({
+  isMinioUrl: vi.fn(() => true),
+  extractKeyFromUrl: vi.fn((u: string) => u.split('/').pop()),
+  deleteObjects: vi.fn(),
 }));
 
 describe("DatabaseStorage", () => {
@@ -201,6 +209,42 @@ describe("DatabaseStorage", () => {
 
       expect(db.delete).toHaveBeenCalled();
       expect(mockQuery.where).toHaveBeenCalled();
+    });
+
+    it("should delete MinIO images when property contains MinIO URLs", async () => {
+      const mockProperty: Property = {
+        id: 1,
+        title: "Has Images",
+        description: "...",
+        type: "sale",
+        category: "house",
+        price: "100000",
+        neighborhood: "Centro",
+        bedrooms: 2,
+        bathrooms: 1,
+        area: 80,
+        imageUrls: ["http://localhost:9000/imovel-facil/x.jpg"],
+        status: "available",
+        createdAt: new Date(),
+      } as any;
+
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([mockProperty]),
+      } as any;
+
+      vi.mocked(db.select).mockReturnValue(mockSelect as any);
+
+      const mockDeleteQuery = {
+        where: vi.fn().mockResolvedValue(undefined),
+      } as any;
+
+      vi.mocked(db.delete).mockReturnValue(mockDeleteQuery as any);
+
+      await storage.deleteProperty(1);
+
+      expect(minio.deleteObjects).toHaveBeenCalled();
+      expect(db.delete).toHaveBeenCalled();
     });
   });
 

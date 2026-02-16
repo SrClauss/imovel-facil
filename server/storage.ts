@@ -11,8 +11,9 @@ import {
   type User,
   type UpsertUser
 } from "@shared/schema";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or } from "drizzle-orm";
 import { IAuthStorage } from "./replit_integrations/auth/storage";
+import { isMinioUrl, extractKeyFromUrl, deleteObjects } from "./minio";
 
 export interface IStorage extends IAuthStorage {
   getProperties(filters?: any): Promise<Property[]>;
@@ -42,6 +43,14 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    return user;
+  }
+
+  async getUserByIdentifier(identifier: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.username, identifier), eq(users.email, identifier)));
     return user;
   }
 
@@ -86,6 +95,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProperty(id: number): Promise<void> {
+    const property = await this.getProperty(id);
+    if (property) {
+      const keys = property.imageUrls
+        .filter((u) => isMinioUrl(u))
+        .map((u) => extractKeyFromUrl(u))
+        .filter(Boolean);
+      if (keys.length) {
+        try {
+          await deleteObjects(keys);
+        } catch (err) {
+          console.error("failed to delete images from object storage:", err);
+        }
+      }
+    }
+
     await db.delete(properties).where(eq(properties.id, id));
   }
 

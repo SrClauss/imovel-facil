@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPropertySchema, type Property } from "@shared/schema";
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@shared/routes";
 import { z } from "zod";
 
 // Extend schema to handle strings from inputs that should be numbers
@@ -29,10 +31,12 @@ const formSchema = insertPropertySchema.extend({
   bedrooms: z.coerce.number(),
   bathrooms: z.coerce.number(),
   area: z.coerce.number(),
-  imageUrls: z.string(), // Keep as string, convert in onSubmit
+  // keep `imageUrls` as string in the form (comma-separated); convert on submit
+  imageUrls: z.string(),
+  videoUrl: z.string().optional(),
 });
 
-type FormValues = z.input<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 interface AdminPropertyFormProps {
   property?: Property;
@@ -44,6 +48,9 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
   const createMutation = useCreateProperty();
   const updateMutation = useUpdateProperty();
 
+  const [uploading, setUploading] = useState(false);
+  const [hasUnsavedImages, setHasUnsavedImages] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,17 +58,30 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
       description: property?.description || "",
       type: (property?.type as "sale" | "rent") || "sale",
       category: property?.category || "house",
-      price: property?.price || "0",
+      price: property?.price ? Number(property.price) : 0,
       neighborhood: property?.neighborhood || "",
       bedrooms: property?.bedrooms || 0,
       bathrooms: property?.bathrooms || 0,
       area: property?.area || 0,
       imageUrls: property?.imageUrls?.join(", ") || "",
+      videoUrl: property?.videoUrl || "",
       status: property?.status || "available",
     },
   });
 
+  // Watch imageUrls field for changes
+  const imageUrlsValue = form.watch("imageUrls");
+
   const onSubmit = async (data: FormValues) => {
+    console.log("Submitting property:", JSON.stringify(data, null, 2));
+
+    // Convert form data to API shape
+    const payload = {
+      ...data,
+      price: String(data.price),
+      imageUrls: (data.imageUrls || "").toString().split(',').map(s => s.trim()).filter(Boolean),
+    } as any;
+
     try {
       // Convert imageUrls from comma-separated string to array
       const processedData = {
@@ -70,17 +90,20 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
       };
       
       if (property) {
-        await updateMutation.mutateAsync({ id: property.id, ...processedData });
+        await updateMutation.mutateAsync({ id: property.id, ...payload });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
       } else {
-        await createMutation.mutateAsync(processedData);
+        await createMutation.mutateAsync(payload);
         toast({ title: "Sucesso", description: "Imóvel cadastrado." });
       }
+      setHasUnsavedImages(false);
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Save property error:", error);
+      const message = error?.message || error?.body?.message || "Falha ao salvar imóvel. Verifique os dados.";
       toast({ 
         title: "Erro", 
-        description: "Falha ao salvar imóvel. Verifique os dados.", 
+        description: message, 
         variant: "destructive" 
       });
     }
@@ -238,17 +261,127 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
 
           <FormField
             control={form.control}
-            name="imageUrls"
+            name="videoUrl"
             render={({ field }) => (
               <FormItem className="col-span-2">
-                <FormLabel>URLs das Imagens (separadas por vírgula)</FormLabel>
+                <FormLabel>Vídeo do YouTube (opcional)</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg" {...field} />
+                  <Input 
+                    placeholder="https://www.youtube.com/watch?v=..." 
+                    {...field} 
+                  />
                 </FormControl>
+                <p className="text-sm text-muted-foreground">
+                  Cole o link do YouTube aqui. Aceita qualquer formato de URL do YouTube.
+                </p>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Image upload UI */}
+          <FormItem className="col-span-2">
+            <FormLabel>Imagens</FormLabel>
+
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
+
+                const fd = new FormData();
+                files.forEach((f) => fd.append("files", f));
+
+                setUploading(true);
+                try {
+                  const res = await fetch(api.uploads.upload.path, {
+                    method: api.uploads.upload.method,
+                    body: fd,
+                    credentials: "include",
+                  });
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    const msg = json?.message || "Falha ao enviar imagens";
+                    toast({ title: "Erro no upload", description: msg, variant: "destructive" });
+                    return;
+                  }
+
+                  const returned: string[] = json.urls || [];
+                  const current = imageUrlsValue || "";
+                  const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                  form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
+                  
+                  // Mark that there are unsaved changes
+                  setHasUnsavedImages(true);
+                  
+                  toast({ 
+                    title: "Upload concluído", 
+                    description: `${returned.length} imagem(ns) adicionadas. CLIQUE EM SALVAR ALTERAÇÕES para persistir!`,
+                    duration: 8000
+                  });
+                } catch (err: any) {
+                  console.error("upload error", err);
+                  toast({ title: "Erro no upload", description: "Verifique sua autenticação / conexão.", variant: "destructive" });
+                } finally {
+                  setUploading(false);
+                  // clear input
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }}
+              className="mb-4"
+            />
+
+            {/* Thumbnails / preview */}
+            <div className="flex gap-2 flex-wrap">
+              {(imageUrlsValue || "")
+                .toString()
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((url) => (
+                  <div key={url} className="relative w-24 h-24 rounded overflow-hidden border">
+                    <img src={url} alt="preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newUrls = (imageUrlsValue || "")
+                          .toString()
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter((u) => u && u !== url);
+                        form.setValue("imageUrls", newUrls.join(", "));
+                        // try to delete from server storage if it belongs to our service
+                        try {
+                          await fetch(api.uploads.delete.path, {
+                            method: api.uploads.delete.method,
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ urls: [url] }),
+                            credentials: "include",
+                          });
+                          toast({ title: "Imagem removida" });
+                        } catch (e) {
+                          toast({ title: "Erro", description: "Falha ao remover imagem do storage", variant: "destructive" });
+                        }
+                      }}
+                      className="absolute top-1 right-1 bg-white/80 rounded-full p-1 text-sm hover:bg-white"
+                      aria-label="Remover imagem"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+            </div>
+
+            {uploading && <div className="text-sm text-muted-foreground mt-2">Enviando imagens...</div>}
+            {hasUnsavedImages && (
+              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium mt-2 flex items-center gap-2">
+                <span>⚠️</span>
+                <span>Imagens carregadas. Clique em "Salvar Alterações" abaixo para persistir!</span>
+              </div>
+            )}
+          </FormItem>
 
           <FormField
             control={form.control}

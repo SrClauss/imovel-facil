@@ -18,6 +18,15 @@ vi.mock("./storage", () => ({
   },
 }));
 
+// Mock minio module used by routes
+vi.mock("./minio", () => ({
+  ensureBucketExists: vi.fn(),
+  uploadImage: vi.fn(),
+  deleteObjects: vi.fn(),
+  isMinioUrl: vi.fn(() => true),
+  extractKeyFromUrl: vi.fn((u: string) => u.split('/').pop()),
+}));
+
 // Mock auth module
 vi.mock("./replit_integrations/auth", () => ({
   setupAuth: vi.fn(),
@@ -179,6 +188,33 @@ describe("API Routes", () => {
         .send(invalidProperty);
 
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("POST /api/uploads", () => {
+    it("should accept image uploads and return urls", async () => {
+      const mockedUrl = "http://localhost:9000/imovel-facil/test.jpg";
+      const minio = await import("./minio");
+      vi.mocked(minio.uploadImage).mockResolvedValue(mockedUrl as any);
+
+      const response = await request(app)
+        .post("/api/uploads")
+        .attach("files", Buffer.from("abc"), "a.jpg");
+
+      expect(response.status).toBe(200);
+      expect(response.body.urls).toContain(mockedUrl);
+    });
+
+    it("DELETE /api/uploads should accept url list and return ok", async () => {
+      const minio = await import("./minio");
+      vi.mocked(minio.deleteObjects).mockResolvedValue(undefined as any);
+
+      const response = await request(app)
+        .delete("/api/uploads")
+        .send({ urls: ["http://localhost:9000/imovel-facil/test.jpg"] });
+
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
     });
   });
 
