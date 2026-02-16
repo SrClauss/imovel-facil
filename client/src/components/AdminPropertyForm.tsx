@@ -27,7 +27,7 @@ import { z } from "zod";
 
 // Extend schema to handle strings from inputs that should be numbers
 const formSchema = insertPropertySchema.extend({
-  price: z.coerce.number(), // Handle decimal as number input
+  price: z.coerce.string(), // Handle decimal as string to match API schema
   bedrooms: z.coerce.number(),
   bathrooms: z.coerce.number(),
   area: z.coerce.number(),
@@ -83,6 +83,12 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
     } as any;
 
     try {
+      // Convert imageUrls from comma-separated string to array
+      const processedData = {
+        ...data,
+        imageUrls: data.imageUrls.split(',').map(s => s.trim()).filter(Boolean),
+      };
+      
       if (property) {
         await updateMutation.mutateAsync({ id: property.id, ...payload });
         toast({ title: "Sucesso", description: "Imóvel atualizado." });
