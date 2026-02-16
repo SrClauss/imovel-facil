@@ -49,6 +49,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
 
   const [localPreviews, setLocalPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [hasUnsavedImages, setHasUnsavedImages] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -85,6 +86,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
         await createMutation.mutateAsync(payload);
         toast({ title: "Sucesso", description: "Imóvel cadastrado." });
       }
+      setHasUnsavedImages(false);
       onSuccess?.();
     } catch (error: any) {
       console.error("Save property error:", error);
@@ -279,6 +281,9 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                       if (!res.ok) {
                         const msg = json?.message || "Falha ao enviar imagens";
                         toast({ title: "Erro no upload", description: msg, variant: "destructive" });
+                        // Remove local previews on error
+                        setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
+                        localUrls.forEach((url) => URL.revokeObjectURL(url));
                         return;
                       }
 
@@ -286,10 +291,25 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                       const current = (form.getValues().imageUrls || "").toString();
                       const currentArr = current ? current.split(",").map((s) => s.trim()).filter(Boolean) : [];
                       form.setValue("imageUrls", [...currentArr, ...returned].join(", "));
-                      toast({ title: "Upload concluído", description: `${returned.length} imagem(ns) adicionadas.` });
+                      
+                      // Remove local previews after successful upload since URLs are now in form
+                      setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
+                      localUrls.forEach((url) => URL.revokeObjectURL(url));
+                      
+                      // Mark that there are unsaved changes
+                      setHasUnsavedImages(true);
+                      
+                      toast({ 
+                        title: "Upload concluído", 
+                        description: `${returned.length} imagem(ns) adicionadas. CLIQUE EM SALVAR ALTERAÇÕES para persistir!`,
+                        duration: 8000
+                      });
                     } catch (err: any) {
                       console.error("upload error", err);
                       toast({ title: "Erro no upload", description: "Verifique sua autenticação / conexão.", variant: "destructive" });
+                      // Remove local previews on error
+                      setLocalPreviews((p) => p.filter((u) => !localUrls.includes(u)));
+                      localUrls.forEach((url) => URL.revokeObjectURL(url));
                     } finally {
                       setUploading(false);
                       // clear input
@@ -359,6 +379,12 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                 </div>
 
                 {uploading && <div className="text-sm text-muted-foreground mt-2">Enviando imagens...</div>}
+                {hasUnsavedImages && (
+                  <div className="text-sm text-orange-600 dark:text-orange-400 font-medium mt-2 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>Imagens carregadas. Clique em "Salvar Alterações" abaixo para persistir!</span>
+                  </div>
+                )}
               </div>
 
               <div className="w-full md:w-1/3">

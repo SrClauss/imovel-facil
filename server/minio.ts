@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectsCommand, CreateBucketCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectsCommand, CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } from "@aws-sdk/client-s3";
 import { randomBytes } from "crypto";
 
 const BUCKET = process.env.MINIO_BUCKET || "imovel-facil";
@@ -24,12 +24,38 @@ function extFromMime(mime?: string) {
 }
 
 export async function ensureBucketExists(bucket = BUCKET) {
+  let bucketExists = true;
   try {
     await s3.send(new HeadBucketCommand({ Bucket: bucket }));
-    return;
   } catch (err: any) {
-    // try to create
+    bucketExists = false;
+    // create bucket
     await s3.send(new CreateBucketCommand({ Bucket: bucket }));
+  }
+  
+  // Set public read policy (allow anonymous read access to all objects)
+  if (!bucketExists) {
+    const policy = {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: "*",
+          Action: ["s3:GetObject"],
+          Resource: [`arn:aws:s3:::${bucket}/*`]
+        }
+      ]
+    };
+    
+    try {
+      await s3.send(new PutBucketPolicyCommand({ 
+        Bucket: bucket, 
+        Policy: JSON.stringify(policy) 
+      }));
+      console.log(`Bucket ${bucket} policy set to public read`);
+    } catch (err: any) {
+      console.error("Failed to set bucket policy:", err.message);
+    }
   }
 }
 
