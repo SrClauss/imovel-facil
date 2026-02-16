@@ -15,6 +15,7 @@ export const properties = pgTable("properties", {
   bathrooms: integer("bathrooms").notNull(),
   area: integer("area").notNull(), // m²
   imageUrls: text("image_urls").array().notNull(),
+  videoUrl: text("video_url"), // Optional YouTube video URL
   status: text("status").notNull().default('available'), // 'available', 'sold', 'rented'
   createdAt: timestamp("created_at").defaultNow(),
 });

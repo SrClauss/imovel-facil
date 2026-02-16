@@ -19,6 +19,26 @@ import { NumericFormat } from "react-number-format";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
+// Extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url: string): string | null {
+  if (!url) return null;
+  
+  // Handle different YouTube URL formats
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\?\/]+)/,
+    /youtube\.com\/shorts\/([^&\?\/]+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
 export default function PropertyDetails() {
   const { id } = useParams();
   const { data: property, isLoading } = useProperty(Number(id));
@@ -57,6 +77,9 @@ export default function PropertyDetails() {
     `Olá, gostaria de saber mais sobre o imóvel "${property.title}" (Cód: ${property.id})`,
   );
   const whatsappLink = `https://wa.me/5574999695633?text=${whatsappMessage}`;
+
+  // Extract YouTube video ID if videoUrl exists
+  const youtubeVideoId = property.videoUrl ? getYouTubeVideoId(property.videoUrl) : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -148,6 +171,27 @@ export default function PropertyDetails() {
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* YouTube Video Section */}
+            {youtubeVideoId && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="aspect-video rounded-2xl overflow-hidden shadow-lg"
+              >
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                  title="Vídeo do imóvel"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </motion.div>
             )}
           </div>
 

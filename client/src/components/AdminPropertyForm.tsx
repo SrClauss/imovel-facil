@@ -33,6 +33,7 @@ const formSchema = insertPropertySchema.extend({
   area: z.coerce.number(),
   // keep `imageUrls` as string in the form (comma-separated); convert on submit
   imageUrls: z.string(),
+  videoUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -63,6 +64,7 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
       bathrooms: property?.bathrooms || 0,
       area: property?.area || 0,
       imageUrls: property?.imageUrls?.join(", ") || "",
+      videoUrl: property?.videoUrl || "",
       status: property?.status || "available",
     },
   });
@@ -246,6 +248,26 @@ export function AdminPropertyForm({ property, onSuccess }: AdminPropertyFormProp
                 <FormControl>
                   <Textarea rows={4} placeholder="Descreva os detalhes do imóvel..." {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="videoUrl"
+            render={({ field }) => (
+              <FormItem className="col-span-2">
+                <FormLabel>Vídeo do YouTube (opcional)</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="https://www.youtube.com/watch?v=..." 
+                    {...field} 
+                  />
+                </FormControl>
+                <p className="text-sm text-muted-foreground">
+                  Cole o link do YouTube aqui. Aceita qualquer formato de URL do YouTube.
+                </p>
                 <FormMessage />
               </FormItem>
             )}

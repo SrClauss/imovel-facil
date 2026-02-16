@@ -25,6 +25,7 @@ describe("PropertyCard", () => {
     imageUrls: [
       "https://images.unsplash.com/photo-1568605114967-8130f3a36994",
     ],
+    videoUrl: null,
     status: "available",
     createdAt: new Date(),
   };
