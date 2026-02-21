@@ -1,0 +1,70 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: imovel-facil-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: imovel_facil
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO (S3-compatible object storage)
+  minio:
+    image: minio/minio:latest
+    container_name: imovel-facil-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports:
+      - "127.0.0.1:9000:9000"  # Bind only to localhost for security
+      - "9001:9001"  # Console
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: imovel-facil-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"  # Bind only to localhost for security
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/imovel_facil
+      NODE_ENV: production
+      PORT: 5000
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: imovel-facil
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio12345
+      MINIO_PUBLIC_URL: https://www.luizspinolaimoveis.com.br/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: node dist/index.cjs
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
